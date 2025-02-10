@@ -7,6 +7,8 @@ from .v38 import *
 from .v39 import *
 from .v310 import *
 
+from .v312 import *
+
 if TYPE_CHECKING:
     from typing import (
         List,
@@ -48,4 +50,8 @@ __all__ = [
     "ClassVar",
     "Generic",
     "UnionOrNone",
+    "Hashable",
+    "Iterable",
+    "Iterator",
+    "get_args","get_origin"
 ]

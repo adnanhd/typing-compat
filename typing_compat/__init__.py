@@ -28,4 +28,9 @@ __all__ = [
     "ClassVar",
     "Generic",
     "UnionOrNone",
+    "Hashable",
+    "Iterable",
+    "Iterator",
+    "get_args",
+    "get_origin",
 ]
