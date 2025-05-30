@@ -91,41 +91,6 @@ def get_type_hints_compat(obj, globalns=None, localns=None, include_extras=False
 # Version info - collected from all modules
 __version__ = "0.2.0"
 
-# Version information for users
-def get_version_info():
-    """Get detailed version information including Python version compatibility."""
-    import sys
-    
-    info = {
-        "typing_compat_version": __version__,
-        "python_version": f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}",
-        "supported_features": {
-            "python_37_plus": PY37_PLUS,
-            "python_38_plus": PY38_PLUS, 
-            "python_39_plus": PY39_PLUS,
-            "python_310_plus": PY310_PLUS,
-            "python_311_plus": PY311_PLUS,
-            "python_312_plus": PY312_PLUS,
-        },
-        "available_modules": [
-            "py3m7", "py3m8", "py3m9", "py3m10", "py3m11", "py3m12"
-        ]
-    }
-    return info
-
-def print_version_info():
-    """Print detailed version information."""
-    info = get_version_info()
-    print(f"Typing Compatibility Library v{info['typing_compat_version']}")
-    print(f"Python {info['python_version']}")
-    print()
-    print("Supported Features:")
-    for feature, supported in info['supported_features'].items():
-        status = "✅" if supported else "❌"
-        print(f"  {status} {feature.replace('_', '.').replace('python.', 'Python ').replace('.plus', '+')}")
-    print()
-    print("Available Modules:", ", ".join(info['available_modules']))
-
 # Aliases for common patterns
 NoneType = type(None)
 
@@ -147,42 +112,12 @@ def is_optional(annotation):
 def is_list_like(annotation):
     """Check if a type annotation represents a list-like type."""
     origin = get_origin(annotation)
-    if origin is None:
-        return False
-    
-    # Check for list-like types
-    # On Python 3.9+, could be built-in list or typing.List
-    # On older Python, typically typing.List
-    if origin is list:
-        return True
-    
-    # Check against List type (could be typing.List or our imported List)
-    if hasattr(origin, '__name__') and origin.__name__ == 'list':
-        return True
-        
-    # Check if it's a typing.List-like class
-    origin_str = str(origin)
-    return 'list' in origin_str.lower() or 'List' in origin_str
+    return origin in (list, List) if PY39_PLUS else origin is List
 
 def is_dict_like(annotation):
     """Check if a type annotation represents a dict-like type."""
     origin = get_origin(annotation)
-    if origin is None:
-        return False
-    
-    # Check for dict-like types
-    # On Python 3.9+, could be built-in dict or typing.Dict
-    # On older Python, typically typing.Dict
-    if origin is dict:
-        return True
-    
-    # Check against Dict type (could be typing.Dict or our imported Dict)
-    if hasattr(origin, '__name__') and origin.__name__ == 'dict':
-        return True
-        
-    # Check if it's a typing.Dict-like class
-    origin_str = str(origin)
-    return 'dict' in origin_str.lower() or 'Dict' in origin_str
+    return origin in (dict, Dict) if PY39_PLUS else origin is Dict
 
 # Comprehensive __all__ export
 __all__ = [
@@ -229,7 +164,4 @@ __all__ = [
     
     # Extra utilities
     "NoneType", "is_optional", "is_list_like", "is_dict_like",
-    
-    # Version info utilities
-    "get_version_info", "print_version_info",
 ]
