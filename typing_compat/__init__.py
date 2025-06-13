@@ -1,235 +1,127 @@
 """
 Enhanced Typing Compatibility Module
 
-This module provides a unified interface for all typing-related imports,
-automatically handling Python version differences by importing from
-version-specific modules.
+Main loader and importer for all typing compatibility features.
+This module imports from:
+1. typing_compat.py (base/generic utilities)
+2. All py3mX.py modules (version-specific features)
+
+Creates a unified interface for all typing needs across Python versions.
 
 Usage:
     from typing_compat import *
     # or
-    from typing_compat import List, Dict, Optional, Literal, Protocol, etc.
+    from typing_compat import List, Dict, Optional, Literal, Protocol, Generator, PathLike, etc.
 """
 
-import sys
-from types import new_class
+# Import base/generic utilities from typing_compat.py
+from .typing_compat import *
 
-# Always available from typing
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    Union,
-    Optional,
-    TypeVar,
-    ClassVar,
-    Generic,
-    NoReturn,
-    Awaitable,
-    Coroutine,
-    AsyncGenerator,
-    AsyncIterator,
-    AsyncIterable,
-    ContextManager,
-    AsyncContextManager,
-    SupportsAbs,
-    SupportsBytes,
-    SupportsComplex,
-    SupportsFloat,
-    SupportsIndex,
-    SupportsInt,
-    SupportsRound,
-    ByteString,
-    AnyStr,
-    Text,
-    Pattern,
-    Match,
-    IO,
-    TextIO,
-    BinaryIO,
-    cast,
-    overload,
-    no_type_check,
-    no_type_check_decorator,
+# Import version-specific features from all py3mX.py modules
+from .py3m5 import *    # Python 3.5+: Generator, core typing, NamedTuple, NewType
+from .py3m6 import *    # Python 3.6+: PathLike, ClassVar, Type improvements  
+from .py3m7 import *    # Python 3.7+: ForwardRef, OrderedDict, Counter, etc.
+from .py3m8 import *    # Python 3.8+: Literal, Protocol, TypedDict, SupportsIndex
+from .py3m9 import *    # Python 3.9+: Built-in generics, collections.abc
+from .py3m10 import *   # Python 3.10+: ParamSpec, TypeGuard, union operators
+from .py3m11 import *   # Python 3.11+: Self, Never, Required/NotRequired
+from .py3m12 import *   # Python 3.12+: override, TypeIs, Buffer
+
+# Explicitly import version from main implementation
+from .typing_compat import __version__
+
+# Re-export version info functions for easy access
+from .typing_compat import get_version_info, print_version_info
+
+# Re-export utility functions for easy access
+from .typing_compat import (
+    # Type checking utilities
+    is_optional, is_list_like, is_dict_like, is_generator_like, is_pathlike,
+    
+    # Compatibility helpers
+    create_generic_alias, is_generic, is_typing_generic, get_type_hints_compat,
+    get_never_type, get_self_type,
+    
+    # Common utilities
+    NoneType,
 )
 
-# Import from version-specific modules
-from .py3m7 import *
-from .py3m8 import *
-from .py3m9 import *
-from .py3m10 import *
-from .py3m11 import *
-from .py3m12 import *
-
-# Additional utility types and functions
-def create_generic_alias(origin, args):
-    """Create a generic alias for older Python versions."""
-    if hasattr(origin, '__class_getitem__'):
-        return origin[args] if isinstance(args, tuple) else origin[args]
-    return origin
-
-def is_generic(tp):
-    """Check if a type is a generic type."""
-    return hasattr(tp, '__origin__') or hasattr(tp, '__args__')
-
-def is_typing_generic(tp):
-    """Check if a type is from the typing module."""
-    return hasattr(tp, '__module__') and tp.__module__ == 'typing'
-
-# Compatibility helpers
-def get_type_hints_compat(obj, globalns=None, localns=None, include_extras=False):
-    """Get type hints with compatibility across Python versions."""
-    try:
-        from typing import get_type_hints
-        if PY311_PLUS:
-            return get_type_hints(obj, globalns, localns, include_extras=include_extras)
-        else:
-            return get_type_hints(obj, globalns, localns)
-    except ImportError:
-        return {}
-
-# Version info - collected from all modules
-__version__ = "0.2.0"
-
-# Version information for users
-def get_version_info():
-    """Get detailed version information including Python version compatibility."""
-    import sys
-    
-    info = {
-        "typing_compat_version": __version__,
-        "python_version": f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}",
-        "supported_features": {
-            "python_37_plus": PY37_PLUS,
-            "python_38_plus": PY38_PLUS, 
-            "python_39_plus": PY39_PLUS,
-            "python_310_plus": PY310_PLUS,
-            "python_311_plus": PY311_PLUS,
-            "python_312_plus": PY312_PLUS,
-        },
-        "available_modules": [
-            "py3m7", "py3m8", "py3m9", "py3m10", "py3m11", "py3m12"
-        ]
-    }
-    return info
-
-def print_version_info():
-    """Print detailed version information."""
-    info = get_version_info()
-    print(f"Typing Compatibility Library v{info['typing_compat_version']}")
-    print(f"Python {info['python_version']}")
-    print()
-    print("Supported Features:")
-    for feature, supported in info['supported_features'].items():
-        status = "✅" if supported else "❌"
-        print(f"  {status} {feature.replace('_', '.').replace('python.', 'Python ').replace('.plus', '+')}")
-    print()
-    print("Available Modules:", ", ".join(info['available_modules']))
-
-# Aliases for common patterns
-NoneType = type(None)
-
-# Backward compatibility
-try:
-    from typing import _GenericAlias
-except ImportError:
-    _GenericAlias = type(List[int])
-
-# Extra utilities for convenience
-def is_optional(annotation):
-    """Check if a type annotation represents an optional type."""
-    origin = get_origin(annotation)
-    if origin is Union:
-        args = get_args(annotation)
-        return len(args) == 2 and type(None) in args
-    return False
-
-def is_list_like(annotation):
-    """Check if a type annotation represents a list-like type."""
-    origin = get_origin(annotation)
-    if origin is None:
-        return False
-    
-    # Check for list-like types
-    # On Python 3.9+, could be built-in list or typing.List
-    # On older Python, typically typing.List
-    if origin is list:
-        return True
-    
-    # Check against List type (could be typing.List or our imported List)
-    if hasattr(origin, '__name__') and origin.__name__ == 'list':
-        return True
-        
-    # Check if it's a typing.List-like class
-    origin_str = str(origin)
-    return 'list' in origin_str.lower() or 'List' in origin_str
-
-def is_dict_like(annotation):
-    """Check if a type annotation represents a dict-like type."""
-    origin = get_origin(annotation)
-    if origin is None:
-        return False
-    
-    # Check for dict-like types
-    # On Python 3.9+, could be built-in dict or typing.Dict
-    # On older Python, typically typing.Dict
-    if origin is dict:
-        return True
-    
-    # Check against Dict type (could be typing.Dict or our imported Dict)
-    if hasattr(origin, '__name__') and origin.__name__ == 'dict':
-        return True
-        
-    # Check if it's a typing.Dict-like class
-    origin_str = str(origin)
-    return 'dict' in origin_str.lower() or 'Dict' in origin_str
-
-# Comprehensive __all__ export
+# Master __all__ export - combines everything from all modules
 __all__ = [
     # Version info
     "__version__",
     
+    # === FROM typing_compat.py (Base/Generic) ===
     # Basic types (always available)
-    "Any", "NoReturn", "Union", "Optional", "Callable", "Type", "TypeVar", "Generic", "ClassVar",
-    
-    # Python 3.7+ (from py3m7)
-    "ForwardRef", "OrderedDict", "Counter", "ChainMap", "Deque", "DefaultDict", "PY37_PLUS",
-    
-    # Python 3.8+ (from py3m8) 
-    "Literal", "Protocol", "TypedDict", "Final", "runtime_checkable", "get_args", "get_origin", "PY38_PLUS",
-    
-    # Python 3.9+ (from py3m9)
-    "List", "Dict", "Set", "FrozenSet", "Tuple", "Iterable", "Iterator", "Container", "Collection", "Sized",
-    "Mapping", "MutableMapping", "Sequence", "MutableSequence", "AbstractSet", "MutableSet",
-    "ItemsView", "KeysView", "ValuesView", "Reversible", "PY39_PLUS",
-    
-    # Python 3.10+ (from py3m10)
-    "ParamSpec", "TypeGuard", "Concatenate", "Annotated", "TypeAlias", "EllipsisType", "UnionType", "UnionOf", "PY310_PLUS",
-    
-    # Python 3.11+ (from py3m11)
-    "Self", "Never", "Required", "NotRequired", "LiteralString", "TypeVarTuple", "Unpack", "PY311_PLUS",
-    
-    # Python 3.12+ (from py3m12)
-    "Hashable", "Buffer", "override", "TypeIs", "PY312_PLUS",
+    "Any", "NoReturn", "Union", "Optional", "Callable", "TypeVar", "Generic", "ClassVar",
     
     # Support types
-    "SupportsAbs", "SupportsBytes", "SupportsComplex", "SupportsFloat", "SupportsIndex",
-    "SupportsInt", "SupportsRound", "ByteString", "AnyStr", "Text", "Pattern", "Match",
-    "IO", "TextIO", "BinaryIO",
+    "SupportsAbs", "SupportsBytes", "SupportsComplex", "SupportsFloat", 
+    "SupportsRound", "AnyStr", "Text", "IO", "TextIO", "BinaryIO",
     
     # Async types
     "Awaitable", "Coroutine", "AsyncGenerator", "AsyncIterator", "AsyncIterable",
     "ContextManager", "AsyncContextManager",
     
     # Utilities
-    "TYPE_CHECKING", "cast", "overload", "no_type_check", "no_type_check_decorator", "new_class",
+    "TYPE_CHECKING", "cast", "overload", "no_type_check", "no_type_check_decorator",
     
-    # Compatibility helpers
+    # === FROM py3m5.py (Python 3.5+) ===
+    "List", "Dict", "Set", "FrozenSet", "Tuple", "Iterable", "Iterator", 
+    "Mapping", "MutableMapping", "Sequence", "MutableSequence",
+    "Generator",  # CRITICAL: Now available!
+    "NamedTuple", "NewType", "SupportsInt", "SupportsFloat", "SupportsComplex", 
+    "SupportsBytes", "SupportsAbs", "SupportsRound", "PY35_PLUS",
+    
+    # === FROM py3m6.py (Python 3.6+) ===
+    "Type", "Container", "Sized", "AbstractSet", "MutableSet",
+    "ItemsView", "KeysView", "ValuesView", "ByteString",
+    "PathLike",  # CRITICAL: Now available!
+    "PY36_PLUS",
+    
+    # === FROM py3m7.py (Python 3.7+) ===
+    "ForwardRef", "OrderedDict", "Counter", "ChainMap", "Deque", "DefaultDict", "PY37_PLUS",
+    
+    # === FROM py3m8.py (Python 3.8+) ===
+    "Literal", "Protocol", "TypedDict", "Final", "runtime_checkable", "get_args", "get_origin",
+    "SupportsIndex",  # CRITICAL: Now available!
+    "Pattern", "Match", "PY38_PLUS",
+    
+    # === FROM py3m9.py (Python 3.9+) ===
+    "Reversible", "PY39_PLUS",
+    
+    # === FROM py3m10.py (Python 3.10+) ===
+    "ParamSpec", "TypeGuard", "Concatenate", "Annotated", "TypeAlias", 
+    "EllipsisType", "UnionType", "UnionOf", "PY310_PLUS",
+    
+    # === FROM py3m11.py (Python 3.11+) ===
+    "Self", "Never", "Required", "NotRequired", "LiteralString", 
+    "TypeVarTuple", "Unpack", "PY311_PLUS",
+    
+    # === FROM py3m12.py (Python 3.12+) ===
+    "Hashable", "Buffer", "override", "TypeIs", "PY312_PLUS",
+    
+    # === Compatibility Helpers (from typing_compat.py) ===
     "create_generic_alias", "is_generic", "is_typing_generic", "get_type_hints_compat",
+    "get_never_type", "get_self_type",
     
-    # Extra utilities
-    "NoneType", "is_optional", "is_list_like", "is_dict_like",
+    # === Type Checking Utilities (from typing_compat.py) ===
+    "is_optional", "is_list_like", "is_dict_like", "is_generator_like", "is_pathlike",
     
-    # Version info utilities
+    # === Extra Utilities ===
+    "NoneType",
+    
+    # === Version Info Utilities ===
     "get_version_info", "print_version_info",
 ]
+
+# Ensure all version flags are available at package level for utility functions
+# These are imported from the py3mX modules above, but we make them explicit
+# for users who want to check version capabilities
+_VERSION_FLAGS = [
+    'PY35_PLUS', 'PY36_PLUS', 'PY37_PLUS', 'PY38_PLUS', 
+    'PY39_PLUS', 'PY310_PLUS', 'PY311_PLUS', 'PY312_PLUS'
+]
+
+# Add version flags to __all__ (they're already imported via py3mX modules)
+__all__.extend(_VERSION_FLAGS)
